@@ -63,7 +63,6 @@ import seaborn as sns
 import seaborn.objects as so
 import matplotlib.pyplot as plt
 ```
-
 ### Load Data
 
 ```{r}
@@ -110,7 +109,7 @@ yarn = pd.read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesda
 <!-- Code for this problem goes in the chunk below.  -->
 
 ```{r prob-1-r}
-
+dim(yarn)
 ```
 
 ```{python prob-1-python}
@@ -123,21 +122,13 @@ yarn = pd.read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesda
     Hint: You may want to exclude NA values before you do your calculation. 
     
     <!-- Code for this goes in the chunk below -->
-
+```{r}
+sum(na.omit(yarn$machine_washable))
+```
     2. (3 points) Explain how your code works, including any changes in variable types that occur during the computation. 
     
     > Your explanation goes here 
-    
-<!-- (keep the > at the front of the line, with a space after it - this is a blockquote in markdown, and sets your answers apart so that I can see them clearly) -->
-
-
-```{r}
-
-```
-
-```{python}
-
-```
+    The code removes any NA values and sums the machine washable column which is stored as true or false, 1 or 0, so adding up each of the 1s will tell you how many are labeled machine washable.
 
 3. How many missing values are recorded for each variable?
 
@@ -156,20 +147,18 @@ yarn = pd.read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesda
 ```{r prob-3-r}
 #  Write a loop that will iterate through each column of the data set and calculate the number of missing values in that column. Store the answer in a new vector variable. 
 
-
-# Which column has the most, fewest, and median NA values?
-
-
-
-```
-
-```{python prob-3-python}
-#  Write a loop that will iterate through each column of the data set and calculate the number of missing values in that column. Store the answer in a new vector variable.  
+na_counts <- sapply(yarn, function(col) sum(is.na(col)))
+na_counts
 
 
 # Which column has the most, fewest, and median NA values?
-
-
+most_na_column <- names(na_counts)[which.max(na_counts)]
+fewest_na_column <- names(na_counts)[which.min(na_counts)]
+median_na_value <- median(na_counts)
+median_na_column <- names(na_counts)[which.min(abs(na_counts - median_na_value))]
+cat("Most NA values:", most_na_column, "\n")
+cat("Fewest NA values:", fewest_na_column, "\n")
+cat("Median NA values:", median_na_column, "\n")
 ```
 
 ## Data Transformations and Summaries
@@ -184,6 +173,8 @@ yarn = pd.read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesda
     
     3. (5 points) Is this data in tidy form? Explain why or why not.
     
+    No because each row doesn't correspond to a single observation
+    
     4. (5 points) Sketch the process to create a data set from `common_yarn` that has three columns: `yarn_company_name`, `yarn_weight_name`, and `n`, the number of entries from each company with that yarn weight. 
     
     5. (5 points) Execute the transformation you planned out in 4.4.
@@ -195,31 +186,50 @@ yarn = pd.read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesda
 
 ```{r prob-4-r}
 # Count up the number of times that each company appears in the data set. 
+library(dplyr)
+company_counts <- yarn %>%
+  group_by(yarn_company_name) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+head(company_counts, 10)
 
 
 # Store the data from only the 10 most common brands in the variable `common_yarn`.
+common_yarn <- company_counts %>%
+  slice_max(n, n = 10)
+print(common_yarn)
 
-
-# Execute the transformation you planned out in 4.4 to create a data set from `common_yarn` that has three columns: `yarn_company_name`, `yarn_weight_name`, and `n`, the number of entries from each company with that yarn weight. 
-
-# Create a plot of the brand and yarn weight using a tile geometric object, mapping `n` to the fill color of the tile. If you cannot figure out the tile plot, you can use a scatterplot to make a similar (though less easily readable) plot, mapping point size to `n` instead. 
-
-
-```
-
-```{python prob-4-python}
-# Count up the number of times that each company appears in the data set. 
-
-
-# Store the data from only the 10 most common brands in the variable `common_yarn`.
 
 
 # Execute the transformation you planned out in 4.4 to create a data set from `common_yarn` that has three columns: `yarn_company_name`, `yarn_weight_name`, and `n`, the number of entries from each company with that yarn weight. 
+final_yarn_data <- yarn %>%
+  filter(yarn_company_name %in% common_yarn$yarn_company_name) %>%
+  group_by(yarn_company_name, yarn_weight_name) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  arrange(desc(n))
+head(final_yarn_data)
+
+
 
 # Create a plot of the brand and yarn weight using a tile geometric object, mapping `n` to the fill color of the tile. If you cannot figure out the tile plot, you can use a scatterplot to make a similar (though less easily readable) plot, mapping point size to `n` instead. 
 
+library(ggplot2)
+
+ggplot(final_yarn_data, aes(x = yarn_company_name, y = yarn_weight_name, fill = n)) +
+  geom_tile() +
+  scale_fill_gradient(low = "blue", high = "red") +  # Color gradient for readability
+  theme_minimal() +
+  labs(
+    title = "Yarn Company vs. Yarn Weight",
+    x = "Yarn Company",
+    y = "Yarn Weight",
+    fill = "Number of Entries"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better visibility
 
 ```
+
+
 
 
 ## Data Cleaning
@@ -256,39 +266,45 @@ yarn = pd.read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesda
 
 ```{r prob-5-r}
 # For how many rows of `yarn` do `texture` and `texture_clean` differ?
+num_different_rows <- sum(yarn$texture != yarn$texture_clean, na.rm = TRUE)
+num_different_rows
 
 
 # Examine the rows where `texture` and `texture_clean` differ. What function(s) do you think were used to transform `texture` to `texture_clean`?
+diff_textures <- yarn %>%
+  filter(texture != texture_clean)
+head(diff_textures, 10)
 
 
 # Create a variable, `top_descriptors`, that contains the top 15 common descriptor words/phrases.
 
-
-# Write a function corresponding to the operations described in 5.5, `is_top_descriptor`. Your function should take a texture description and return `True` if one of the `top_descriptors` is present, and `False` if none of the `top_descriptors` are present. 
-
-
-# Create a new column in `yarn`, `common_texture`, which is `True` if `texture_clean` contains one of the popular keywords and `False` otherwise. 
-
-
-```
-
-```{python prob-5-python}
-# For how many rows of `yarn` do `texture` and `texture_clean` differ?
-
-
-# Examine the rows where `texture` and `texture_clean` differ. What function(s) do you think were used to transform `texture` to `texture_clean`?
-
-
-# Create a variable, `top_descriptors`, that contains the top 15 common descriptor words/phrases.
+library(dplyr)
+yarn <- yarn %>%
+  mutate(texture_clean = tolower(texture_clean))
+words_list <- unlist(strsplit(yarn$texture_clean, "\\s+"))  # Split by spaces
+word_counts <- data.frame(word = words_list) %>%
+  group_by(word) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n))
+top_descriptors <- word_counts %>%
+  slice_max(n, n = 15)
+print(top_descriptors)
 
 
 # Write a function corresponding to the operations described in 5.5, `is_top_descriptor`. Your function should take a texture description and return `True` if one of the `top_descriptors` is present, and `False` if none of the `top_descriptors` are present. 
 
+is_top_descriptor <- function(description) {
+  any(sapply(top_descriptors$word, function(word) grepl(word, description, ignore.case = TRUE)))
+}
 
 # Create a new column in `yarn`, `common_texture`, which is `True` if `texture_clean` contains one of the popular keywords and `False` otherwise. 
+yarn <- yarn %>%
+  mutate(common_texture = sapply(texture_clean, is_top_descriptor))
+head(data)
 
 
 ```
+
 
 
 ## Data Transformation
@@ -333,24 +349,7 @@ yarn = pd.read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesda
   
 ```{r prob-6-r}
 # Print out the unique values for `yarn_weight_wpi` in the `yarn` dataset. 
-
-
-# Write a function, `convert_weight_int(x)` that takes a character string describing the weight and converts it to a representative integer.
-
-
-# Use your function to create a new column in yarn, `yarn_weight_wpi_num`. 
-
-# What is the mean yarn weight for Bernat yarns?
-# If you had trouble with 6.4, you can use `prob6pt4.csv` to complete this problem. 
-
-# Remove any rows with an NA for `yarn_weight_wpi_num`.     
-# If you had trouble with 6.4, you can use `prob6pt4.csv` to complete this problem. 
-
-```
-
-```{python prob-6-python}
-# Print out the unique values for `yarn_weight_wpi` in the `yarn` dataset. 
-
+unique(yarn$yarn_weight_wpi)
 
 # Write a function, `convert_weight_int(x)` that takes a character string describing the weight and converts it to a representative integer.
 
@@ -364,4 +363,6 @@ yarn = pd.read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesda
 # If you had trouble with 6.4, you can use `prob6pt4.csv` to complete this problem. 
 
 ```
+
+
 
